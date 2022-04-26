@@ -88,7 +88,7 @@
 			</l>
 			<l id="10" name="DEPOT - Loading Ramp" env_mod_spawn_num="1">
 				<components>
-					<c component_type="3" id="22" name="from=stormHaul,type=depot,depot_type=loading_ramp" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_name="data/missions_working/vehicle_22.xml" vehicle_file_store="4" vehicle_is_static="true" vehicle_is_invulnerable="true">
+					<c component_type="3" id="22" name="from=StormHaul,type=depot,depot_type=loading_ramp" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_name="data/missions_working/vehicle_22.xml" vehicle_file_store="4" vehicle_is_static="true" vehicle_is_invulnerable="true">
 						<spawn_transform 30="0.021261" 31="1.324432" 32="-0.037792"/>
 						<spawn_bounds>
 							<min x="-2.375" y="-2.125" z="-22.875"/>
@@ -110,7 +110,7 @@
 			</l>
 			<l id="11" name="DEPOT - Warehouse" env_mod_spawn_num="1">
 				<components>
-					<c component_type="3" id="24" name="from=stormHaul,type=depot,depot_type=warehouse" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_name="data/missions_working/vehicle_24.xml" vehicle_file_store="4" vehicle_is_static="true">
+					<c component_type="3" id="24" name="from=StormHaul,type=depot,depot_type=warehouse" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_name="data/missions_working/vehicle_24.xml" vehicle_file_store="4" vehicle_is_static="true" vehicle_is_invulnerable="true">
 						<spawn_transform 30="0.003238" 31="4.251794" 32="0.07765"/>
 						<spawn_bounds>
 							<min x="-15.125" y="-0.125" z="-12.625"/>
@@ -132,7 +132,7 @@
 			</l>
 			<l id="12" name="CARGO - Basic" env_mod_spawn_num="1">
 				<components>
-					<c component_type="3" id="23" name="from=stormHaul,type=cargo,cargo_type=basic,pay=0.6" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_name="data/missions_working/vehicle_23.xml" vehicle_file_store="4">
+					<c component_type="3" id="23" name="from=StormHaul,type=cargo,cargo_type=basic,pay=0.6" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_name="data/missions_working/vehicle_23.xml" vehicle_file_store="4">
 						<spawn_transform 30="0.001211" 31="0.054051" 32="0.101902"/>
 						<spawn_bounds>
 							<min x="-4.875" y="0.625" z="14.875"/>
@@ -145,7 +145,7 @@
 			</l>
 			<l id="13" name="VEHICLE - Forklift" env_mod_spawn_num="1">
 				<components>
-					<c component_type="3" id="27" name="from=stormHaul,type=vehicle,vehicle_type=forklift" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_name="data/missions_working/vehicle_27.xml" vehicle_file_store="4">
+					<c component_type="3" id="27" name="from=StormHaul,type=vehicle,vehicle_type=forklift" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_name="data/missions_working/vehicle_27.xml" vehicle_file_store="4">
 						<spawn_transform 30="0.036962" 31="1.507712" 32="0.018401"/>
 						<spawn_bounds>
 							<min x="-0.625" y="-0.375" z="-6.375"/>

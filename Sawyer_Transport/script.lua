@@ -14,9 +14,9 @@ local d = debugging
 local s = server
 local m = matrix
 
-local STORMHAUL_VERSION = "(0.1.0.2)"
+local STORMHAUL_VERSION = "(0.1.0.3)"
 local IS_DEVELOPMENT_VERSION = string.match(STORMHAUL_VERSION, "(%d%.%d%.%d%.%d)")
-	
+
 -- valid values:
 -- "TRUE" if this version will be able to run perfectly fine on old worlds
 -- "FULL_RELOAD" if this version will need to do a full reload to work properly
@@ -30,7 +30,7 @@ local time = { -- the time unit in ticks, irl time, not in game
 	day = 5184000
 }
 
-local CARGO_TYPE_GENERIC = "generic"
+local CARGO_TYPE_BASIC = "basic"
 local CARGO_TYPE_FRAGILE = "fragile"
 local CARGO_TYPE_FLAMMABLE = "flammable"
 local CARGO_TYPE_EXPLOSIVE = "explosive"
