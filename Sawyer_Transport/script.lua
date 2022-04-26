@@ -7,13 +7,14 @@
 
 -- library prefixes
 local debugging = {} -- functions related to debugging
+local cache = {}
 
 -- shortened library names
 local d = debugging
 local s = server
 local m = matrix
 
-local STORMHAUL_VERSION = "(0.1.0.1)"
+local STORMHAUL_VERSION = "(0.1.0.2)"
 local IS_DEVELOPMENT_VERSION = string.match(STORMHAUL_VERSION, "(%d%.%d%.%d%.%d)")
 	
 -- valid values:
