@@ -14,7 +14,7 @@ local d = debugging
 local s = server
 local m = matrix
 
-local STORMHAUL_VERSION = "(0.1.0.3)"
+local STORMHAUL_VERSION = "(0.1.0.4)"
 local IS_DEVELOPMENT_VERSION = string.match(STORMHAUL_VERSION, "(%d%.%d%.%d%.%d)")
 
 -- valid values:
@@ -22,6 +22,8 @@ local IS_DEVELOPMENT_VERSION = string.match(STORMHAUL_VERSION, "(%d%.%d%.%d%.%d)
 -- "FULL_RELOAD" if this version will need to do a full reload to work properly
 -- "FALSE" if this version has not been tested or its not compatible with older versions
 local IS_COMPATIBLE_WITH_OLDER_VERSIONS = "FALSE"
+
+local built_locations = {}
 
 local time = { -- the time unit in ticks, irl time, not in game
 	second = 60,
@@ -39,14 +41,17 @@ g_savedata = {
 	tick_counter = 0,
 	player_data = {},
 	prefabs = {
-		cargo = {},
-		vehicles = {},
-		structures = {}
+		depot = {}, -- the depots
+		vehicle = {}, -- the vehicles, such as the forklift
+		cargo = {} -- the cargo thats transported
 	},
 	depots = {},
 	cargo = {},
 	cache = {
 		depot_distances = {}
+	},
+	info = {
+		creation_version = STORMHAUL_VERSION
 	},
 	cache_stats = {
 		reads = 0,
@@ -71,6 +76,12 @@ g_savedata = {
 	}
 }
 
+--------------------------------------------------------------------------------
+--
+-- MAIN ADDON HANDLING
+--
+--------------------------------------------------------------------------------
+
 function onCreate(is_world_create)
 	local world_setup_time = s.getTimeMillisec()
 	s.announce("Loading Script: " .. s.getAddonData((s.getAddonIndex())).name, "Complete, Version: "..STORMHAUL_VERSION, -1)
@@ -79,17 +90,6 @@ function onCreate(is_world_create)
 		setupWorld()
 	end
 	d.print(("%s%.3f%s"):format("World setup complete! took: ", millisecondsSince(world_setup_time)/1000, "s"), true, -1)
-end
-
-function setupWorld()
-	for i in iterPlaylists() do
-		for j in iterLocations(i) do
-			build_locations(i, j)
-		end
-	end
-	for i = 1, #built_locations do
-		buildPrefabs(i)
-	end
 end
 
 -- tick the cargo timers
@@ -138,9 +138,278 @@ end
 
 --------------------------------------------------------------------------------
 --
+-- ADDITIONAL ADDON HANDLING
+--
+--------------------------------------------------------------------------------
+
+local command_prefixes = {
+	"?stormhaul", -- main command prefix
+	"?sh"
+}
+
+local player_commands = {
+	normal = {
+		info = {
+			short_desc = "prints info about the mod",
+			desc = "prints some info about the mod in chat! including version, world creation version, times reloaded, ect. Really helpful if you attach the commands output in bug reports!",
+			args = "none",
+			example = "<PREFIX> info",
+		},
+		help = {
+			short_desc = "shows a list of all of the commands",
+			desc = "shows a list of all of the commands, to learn more about a command, type to commands name after \"help\" to learn more about it",
+			args = "[command]",
+			example = "<PREFIX> help info",
+		}
+	},
+	admin = {
+		debug = {
+			short_desc = "enables or disables debug mode",
+			desc = "lets you toggle debug mode, also shows all the AI vehicles on the map with tons of info valid debug types: \"all\", \"chat\", \"profiler\" and \"map\"",
+			args = "(debug_type) [peer_id]",
+			example = "<PREFIX> debug all\n<PREFIX> debug map 0",
+		}
+	},
+	host = {}
+}
+
+function onCustomCommand(full_message, peer_id, is_admin, is_auth, prefix, command, ...)
+
+	-- check if the command they entered is for this addon
+	local valid_prefix = false
+	prefix = string.friendly(prefix)
+	for _, k in pairs(command_prefixes) do
+		if prefix == k then
+			valid_prefix = true
+			break
+		end
+	end
+
+	if valid_prefix then
+		if command then
+			command = string.lower(command) -- makes the command all lowercase
+			local arg = table.pack(...) -- this will supply all the remaining arguments to the function
+			for arg_index, arg_string in ipairs(arg) do -- makes the args friendly
+				arg[arg_index] = string.friendly(arg_string)
+			end
+
+			-- 
+			-- commands all players can execute
+			--
+			if command == "info" then
+				d.print("------ StormHaul Info ------", false, 0, peer_id)
+				d.print("Version: "..STORMHAUL_VERSION, false, 0, peer_id)
+				d.print("World Creation Version: "..g_savedata.info.creation_version, false, 0, peer_id)
+			end
+
+			--
+			-- admin only commands
+			--
+			if is_admin then
+				if command == "debug" then
+
+					-- get type of debug
+					if arg[1] == "all" then 
+						-- all debug
+						arg[1] = -1
+
+					elseif arg[1] == "chat" then 
+						-- chat debug
+						arg[1] = 0
+
+					elseif arg[1] == "error" then 
+						-- chat debug but only errors
+						arg[1] = 1
+
+					elseif arg[1] == "profiler" then 
+						-- profiler debug
+						arg[1] = 2
+
+					elseif arg[1] == "map" then 
+						-- map debug
+						arg[1] = 3
+
+					elseif not arg[1] or tonumber(arg[1]) then 
+						-- none specified
+						d.print("You need to specify a type to debug! valid types are: \"all\" | \"chat\" | \"error\" | \"profiler\" | \"map\"", false, 1, peer_id)
+						return
+					else 
+						-- unknown debug type
+						d.print("Unknown debug type: "..arg[1].." valid types are: \"all\" | \"chat\" | \"error\" | \"profiler\" | \"map\"", false, 1, peer_id)
+						return
+					end
+					-- if they specified a player, then toggle it for that specified player
+					if arg[2] then
+						local player_list = s.getPlayers()
+						for player_index, player in pairs(player_list) do
+							if player.id == tonumber(arg[2]) then
+								local debug_output = d.setDebug(tonumber(arg[1]), tonumber(arg[2]))
+								d.print(s.getPlayerName(peer_id).." "..debug_output.." for you", false, 0, tonumber(arg[2]))
+								d.print(debug_output.." for "..s.getPlayerName(tonumber(arg[2])), false, 0, peer_id)
+								return
+							end
+						end
+						d.print("unknown peer id: "..arg[2], false, 1, peer_id)
+					else -- if they did not specify a player
+						local debug_output = d.setDebug(tonumber(arg[1]), peer_id)
+						d.print(debug_output, false, 0, peer_id)
+					end
+				end
+			end
+
+
+			-- 
+			-- Host Only Commands
+			--
+			if peer_id == 0 and is_admin then
+				if command == "full_reload" and peer_id == 0 then
+					local steam_id = getSteamID(peer_id)
+					if arg[1] == "confirm" and g_savedata.player_data[steam_id].fully_reloading then
+						d.print(s.getPlayerName(peer_id).." IS FULLY RELOADING IMPROVED CONQUEST MODE ADDON, THINGS HAVE A HIGH CHANCE OF BREAKING!", false, 0)
+						onCreate(true, true, peer_id)
+					elseif arg[1] == "cancel" and g_savedata.player_data[steam_id].fully_reloading == true then
+						d.print("Action has been reverted, no longer will be fully reloading addon", false, 0, peer_id)
+						g_savedata.player_data[steam_id].fully_reloading = nil
+					end
+					if not arg[1] then
+						d.print("WARNING: This command can break your entire world, if you care about this world, before commencing with this command please MAKE A BACKUP.\n\nTo acknowledge you've read this, do\n\"?impwep full_reload confirm\".\n\nIf you want to go back now, do\n\"?impwep full_reload cancel.\"\n\nAction will be automatically reverting in 15 seconds", false, 0, peer_id)
+						g_savedata.player_data[steam_id].fully_reloading = true
+						g_savedata.player_data[steam_id].timers.do_as_i_say = g_savedata.tick_counter
+					end
+				end
+			else
+				for command_name, command_info in pairs(player_commands.host) do
+					if command == command_name then
+						d.print("You do not have permission to use "..command..", contact a server admin if you believe this is incorrect.", false, 1, peer_id)
+					end
+				end
+			end
+
+			
+			--
+			-- help command
+			--
+			if command == "help" then
+				if not arg[1] then -- print a list of all commands
+					
+					-- player commands
+					d.print("All Improved Conquest Mode Commands (PLAYERS)", false, 0, peer_id)
+					for command_name, command_info in pairs(player_commands.normal) do 
+						if command_info.args ~= "none" then
+							d.print("-----\nCommand\n?impwep "..command_name.." "..command_info.args, false, 0, peer_id)
+						else
+							d.print("-----\nCommand\n?impwep "..command_name, false, 0, peer_id)
+						end
+						d.print("Short Description\n"..command_info.short_desc, false, 0, peer_id)
+					end
+
+					-- admin commands
+					if is_admin then 
+						d.print("\nAll Improved Conquest Mode Commands (ADMIN)", false, 0, peer_id)
+						for command_name, command_info in pairs(player_commands.admin) do
+							if command_info.args ~= "none" then
+								d.print("-----\nCommand\n?impwep "..command_name.." "..command_info.args, false, 0, peer_id)
+							else
+								d.print("-----\nCommand\n?impwep "..command_name, false, 0, peer_id)
+							end
+							d.print("Short Description\n"..command_info.short_desc, false, 0, peer_id)
+						end
+					end
+
+					-- host only commands
+					if peer_id == 0 and is_admin then
+						d.print("\nAll Improved Conquest Mode Commands (HOST)", false, 0, peer_id)
+						for command_name, command_info in pairs(player_commands.host) do
+							if command_info.args ~= "none" then
+								d.print("-----\nCommand\n?impwep "..command_name.." "..command_info.args, false, 0, peer_id)
+							else
+								d.print("-----\nCommand\n?impwep "..command_name, false, 0, peer_id)
+							end
+							d.print("Short Description\n"..command_info.short_desc.."\n", false, 0, peer_id)
+						end
+					end
+
+				else -- print data only on the specific command they specified, if it exists
+					local command_exists = false
+					local has_permission = false
+					local command_data = nil
+					for permission_level, command_list in pairs(player_commands) do
+						for command_name, command_info in pairs(command_list) do
+							if command_name == arg[1]then
+								command_exists = true
+								command_data = command_info
+								if
+								permission_level == "admin" and is_admin 
+								or 
+								permission_level == "host" and is_admin and peer_id == 0 
+								or
+								permission_level == "normal"
+								then
+									has_permission = true
+								end
+							end
+						end
+					end
+					if command_exists then -- if the command exists
+						if has_permission then -- if they can execute it
+							if command_data.args ~= "none" then
+								d.print("\nCommand\n?impwep "..arg[1].." "..command_data.args, false, 0, peer_id)
+							else
+								d.print("\nCommand\n?impwep "..arg[1], false, 0, peer_id)
+							end
+							d.print("Description\n"..command_data.desc, false, 0, peer_id)
+							d.print("Example Usage\n"..string.gsub(command_data.example, "/<PREFIX/>", command_prefixes[1]), false, 0, peer_id)
+						else
+							d.print("You do not have permission to use \""..arg[1].."\", contact a server admin if you believe this is incorrect.", false, 1, peer_id)
+						end
+					else
+						d.print("unknown command! \""..arg[1].."\" do \"?impwep help\" to get a list of all valid commands!", false, 1, peer_id)
+					end
+				end
+			end
+
+			-- if the command they entered exists
+			local is_command = false
+			for permission_level, command_list in pairs(player_commands) do
+				if command_list[command] then
+					is_command = true
+					break
+				end
+			end
+
+			if not is_command then -- if the command they specified does not exist
+				d.print("unknown command! \""..command.."\" do \"?impwep help\" to get a list of all valid commands!", false, 1, peer_id)
+			end
+		else
+			d.print("you need to specify a command! use\n\""..command_prefixes[1].." help\" to get a list of all commands!", false, 1, peer_id)
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
+--
 -- WORLD SETUP
 --
 --------------------------------------------------------------------------------
+
+function setupWorld()
+
+	setupDepots()
+
+	for i in iterPlaylists() do
+		for j in iterLocations(i) do
+			build_locations(i, j)
+		end
+	end
+	for i = 1, #built_locations do
+		buildPrefabs(i)
+	end
+end
+
+-- spawns all the depots
+function setupDepots()
+	local depot_zones = s.getZones("depot_zone")
+end
 
 function build_locations(playlist_index, location_index)
     local location_data = s.getLocationData(playlist_index, location_index)
@@ -182,7 +451,6 @@ function buildPrefabs(location_index)
     local location = built_locations[location_index]
 
 	-- construct prefab list
-	local vehicle_index = #g_savedata.vehicle_list + 1 or 1
 	for key, vehicle in pairs(location.objects.vehicles) do
 
 		local prefab_data = {location = location, vehicle = vehicle, fires = {}}
@@ -191,7 +459,7 @@ function buildPrefabs(location_index)
 			table.insert(prefab_data.fires, fire)
 		end
 
-		local vehicle_type = getTagValue(vehicle.tags, "vehicle_type", true) -- cargo, depot, forklift
+		local prefab_type = getTagValue(vehicle.tags, "type", true)
 		
 		table.insert(g_savedata.prefabs[prefab_type], prefab_data)
 	end
@@ -252,6 +520,32 @@ function iterLocations(playlist_index)
 
 		if location_data ~= nil then
 			return index, location_data
+		else
+			return nil
+		end
+	end
+end
+
+-- iterator function for iterating over all objects in a location, skipping any that return nil data
+function iterObjects(playlist_index, location_index)
+	local location_data = s.getLocationData(playlist_index, location_index)
+	local object_count = 0
+	if location_data ~= nil then object_count = location_data.component_count end
+	local object_index = 0
+
+	return function()
+		local object_data = nil
+		local index = object_count
+
+		while not object_data and object_index < object_count do
+			object_data = s.getLocationComponentData(playlist_index, location_index, object_index)
+			object_data.index = object_index
+			index = object_index
+			object_index = object_index + 1
+		end
+
+		if object_data ~= nil then
+			return index, object_data
 		else
 			return nil
 		end
@@ -384,9 +678,9 @@ function debugging.print(message, requires_debug, debug_type, peer_id) -- glorio
 
 		if type(message) ~= "table" and IS_DEVELOPMENT_VERSION then
 			if message then
-				debug.log("SW STORMHAUL "..suffix.." | "..string.gsub(message, "\n", " \\n "))
+				debug.log("SW STORMHAUL"..suffix.." | "..string.gsub(message, "\n", " \\n "))
 			else
-				debug.log("SW STORMHAUL "..suffix.." | (d.print) message is nil!")
+				debug.log("SW STORMHAUL"..suffix.." | (d.print) message is nil!")
 			end
 		end
 		
@@ -800,4 +1094,18 @@ end
 ---@return number ms_since how many ms its been since <start_ms>
 function millisecondsSince(start_ms)
 	return s.getTimeMillisec() - start_ms
+end
+
+-- custom functions made due to a bug in v1.4.15, its since been patched
+-- but I'll keep it here anyways as it may be useful in the future
+-- and it makes the code cleaner
+
+-- returns true if the peer_id is a player id
+function isPlayer(peer_id)
+	return (peer_id and peer_id ~= -1 and peer_id ~= 65535)
+end
+
+-- returns true if the peer_id is not a player id
+function notPlayer(peer_id)
+	return (peer_id == -1 or peer_id == 65535 or not peer_id)
 end
