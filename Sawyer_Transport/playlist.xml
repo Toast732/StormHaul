@@ -4,7 +4,7 @@
 		<locations>
 			<l id="1" tile="data/tiles/mega_island_8_7.xml" name="HOLT TOWN" is_env_mod="true" env_mod_spawn_num="1">
 				<components>
-					<c component_type="10" id="26" cargo_zone_import_cargo_type="depot,depot_type=warehouse" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
+					<c component_type="10" id="26" cargo_zone_import_cargo_type="depot,depot_type=warehouse" display_name="Holt Warehouse" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
 						<spawn_transform 00="-0.899085" 02="0.437774" 20="-0.437774" 22="-0.899085" 30="30.214191" 31="8.600384" 32="269.172607"/>
 						<spawn_bounds>
 							<min x="-5" y="-5" z="-5"/>
@@ -16,8 +16,8 @@
 			</l>
 			<l id="2" tile="data/tiles/mega_island_12_6.xml" name="O'NEILL AIRBASE" is_env_mod="true" env_mod_spawn_num="1">
 				<components>
-					<c component_type="10" id="28" cargo_zone_import_cargo_type="depot,depot_type=loading_ramp" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
-						<spawn_transform 00="-0.573949" 02="0.818891" 20="-0.818891" 22="-0.573949" 30="68.757721" 31="8.638454" 32="126.884064"/>
+					<c component_type="10" id="28" cargo_zone_import_cargo_type="depot,depot_type=loading_ramp" display_name="O'Neill Cargo" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
+						<spawn_transform 00="-0.573949" 02="0.818891" 20="-0.818891" 22="-0.573949" 30="68.757721" 31="8.622662" 32="126.884064"/>
 						<spawn_bounds>
 							<min x="-5" y="-5" z="-5"/>
 							<max x="5" y="5" z="5"/>
@@ -28,8 +28,8 @@
 			</l>
 			<l id="3" tile="data/tiles/mega_island_2_6.xml" name="HARRISON AIRBASE" is_env_mod="true" env_mod_spawn_num="1">
 				<components>
-					<c component_type="10" id="30" cargo_zone_import_cargo_type="depot,depot_type=loading_ramp" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
-						<spawn_transform 00="0.685503" 02="0.72807" 20="-0.72807" 22="0.685503" 30="127.981262" 31="12.44092" 32="-59.811245"/>
+					<c component_type="10" id="30" cargo_zone_import_cargo_type="depot,depot_type=loading_ramp" display_name="Harrison Airlines Cargo" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
+						<spawn_transform 00="0.685503" 02="0.72807" 20="-0.72807" 22="0.685503" 30="127.981262" 31="12.431235" 32="-59.811245"/>
 						<spawn_bounds>
 							<min x="-5" y="-5" z="-5"/>
 							<max x="5" y="5" z="5"/>
@@ -40,7 +40,7 @@
 			</l>
 			<l id="4" tile="data/tiles/mega_island_9_8.xml" name="SAWYER ISLANDS' NORTH HARBOUR" is_env_mod="true" env_mod_spawn_num="1">
 				<components>
-					<c component_type="10" id="31" cargo_zone_import_cargo_type="depot,depot_type=warehouse" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
+					<c component_type="10" id="31" cargo_zone_import_cargo_type="depot,depot_type=warehouse" display_name="North Cargo Services" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
 						<spawn_transform 00="-0.999994" 02="0.003496" 20="-0.003496" 22="-0.999994" 30="405.16684" 31="6.811346" 32="302.925995"/>
 						<spawn_bounds>
 							<min x="-5" y="-5" z="-5"/>
@@ -52,7 +52,7 @@
 			</l>
 			<l id="5" tile="data/tiles/mega_island_15_2.xml" name="SAWYER ISLANDS' SOUTH-EAST FISHING VILLAGE" is_env_mod="true" env_mod_spawn_num="1">
 				<components>
-					<c component_type="10" id="32" cargo_zone_import_cargo_type="depot,depot_type=loading_ramp" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
+					<c component_type="10" id="32" cargo_zone_import_cargo_type="depot,depot_type=loading_ramp" display_name="Fishery Cargo" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
 						<spawn_transform 00="-0.880747" 02="-0.473587" 20="0.473587" 22="-0.880747" 30="204.421768" 31="6.648039" 32="-312.902679"/>
 						<spawn_bounds>
 							<min x="-5" y="-5" z="-5"/>
@@ -76,7 +76,7 @@
 			</l>
 			<l id="8" tile="data/tiles/mega_island_7_6.xml" name="DEAN HALL MINING COMPANY" is_env_mod="true" env_mod_spawn_num="1">
 				<components>
-					<c component_type="10" id="34" cargo_zone_import_cargo_type="depot,depot_type=loading_ramp" dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
+					<c component_type="10" id="34" cargo_zone_import_cargo_type="depot,depot_type=loading_ramp" display_name="Dean Hall Cargo Inc." dynamic_object_type="2" character_outfit_category="11" character_type="1" vehicle_file_store="1">
 						<spawn_transform 00="0.774286" 02="-0.632836" 20="0.632836" 22="0.774286" 30="72.589134" 31="30.947422" 32="-24.340839"/>
 						<spawn_bounds>
 							<min x="-5" y="-5" z="-5"/>

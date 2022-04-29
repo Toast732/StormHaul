@@ -14,7 +14,7 @@ local d = debugging
 local s = server
 local m = matrix
 
-local STORMHAUL_VERSION = "(0.1.0.4)"
+local STORMHAUL_VERSION = "(0.1.0.5)"
 local IS_DEVELOPMENT_VERSION = string.match(STORMHAUL_VERSION, "(%d%.%d%.%d%.%d)")
 
 -- valid values:
@@ -37,6 +37,10 @@ local CARGO_TYPE_FRAGILE = "fragile"
 local CARGO_TYPE_FLAMMABLE = "flammable"
 local CARGO_TYPE_EXPLOSIVE = "explosive"
 
+local PREFAB_TYPE_DEPOT = "depot"
+local PREFAB_TYPE_CARGO = "cargo"
+local PREFAB_TYPE_VEHICLE = "vehicle"
+
 g_savedata = {
 	tick_counter = 0,
 	player_data = {},
@@ -45,8 +49,11 @@ g_savedata = {
 		vehicle = {}, -- the vehicles, such as the forklift
 		cargo = {} -- the cargo thats transported
 	},
-	depots = {},
-	cargo = {},
+	spawned_objects = {
+		depots = {},
+		vehicles = {},
+		cargo = {}
+	},
 	cache = {
 		depot_distances = {}
 	},
@@ -87,6 +94,7 @@ function onCreate(is_world_create)
 	s.announce("Loading Script: " .. s.getAddonData((s.getAddonIndex())).name, "Complete, Version: "..STORMHAUL_VERSION, -1)
 
 	if is_world_create then
+		d.print("setting up world", true, 0)
 		setupWorld()
 	end
 	d.print(("%s%.3f%s"):format("World setup complete! took: ", millisecondsSince(world_setup_time)/1000, "s"), true, -1)
@@ -94,7 +102,7 @@ end
 
 -- tick the cargo timers
 function tickCargo()
-	for cargo_index, cargo in pairs(g_savedata.cargo) do -- for all cargo
+	for cargo_index, cargo in pairs(g_savedata.spawned_objects.cargo) do -- for all cargo
 		if isTickID(cargo_index, time.second) then -- tick every second
 			
 		end
@@ -254,6 +262,14 @@ function onCustomCommand(full_message, peer_id, is_admin, is_auth, prefix, comma
 						local debug_output = d.setDebug(tonumber(arg[1]), peer_id)
 						d.print(debug_output, false, 0, peer_id)
 					end
+				elseif command == "setupdepots" then
+					-- delete all depots
+					for _, depot in pairs(g_savedata.spawned_objects.depots) do
+						s.despawnVehicle(depot.object.id, true)
+					end
+
+					-- set them back up
+					setupDepots()
 				end
 			end
 
@@ -262,21 +278,6 @@ function onCustomCommand(full_message, peer_id, is_admin, is_auth, prefix, comma
 			-- Host Only Commands
 			--
 			if peer_id == 0 and is_admin then
-				if command == "full_reload" and peer_id == 0 then
-					local steam_id = getSteamID(peer_id)
-					if arg[1] == "confirm" and g_savedata.player_data[steam_id].fully_reloading then
-						d.print(s.getPlayerName(peer_id).." IS FULLY RELOADING IMPROVED CONQUEST MODE ADDON, THINGS HAVE A HIGH CHANCE OF BREAKING!", false, 0)
-						onCreate(true, true, peer_id)
-					elseif arg[1] == "cancel" and g_savedata.player_data[steam_id].fully_reloading == true then
-						d.print("Action has been reverted, no longer will be fully reloading addon", false, 0, peer_id)
-						g_savedata.player_data[steam_id].fully_reloading = nil
-					end
-					if not arg[1] then
-						d.print("WARNING: This command can break your entire world, if you care about this world, before commencing with this command please MAKE A BACKUP.\n\nTo acknowledge you've read this, do\n\"?impwep full_reload confirm\".\n\nIf you want to go back now, do\n\"?impwep full_reload cancel.\"\n\nAction will be automatically reverting in 15 seconds", false, 0, peer_id)
-						g_savedata.player_data[steam_id].fully_reloading = true
-						g_savedata.player_data[steam_id].timers.do_as_i_say = g_savedata.tick_counter
-					end
-				end
 			else
 				for command_name, command_info in pairs(player_commands.host) do
 					if command == command_name then
@@ -394,21 +395,66 @@ end
 
 function setupWorld()
 
-	setupDepots()
+	d.print("building locations", true, 0)
 
 	for i in iterPlaylists() do
 		for j in iterLocations(i) do
 			build_locations(i, j)
 		end
 	end
+
+	d.print("building prefabs", true, 0)
+
 	for i = 1, #built_locations do
 		buildPrefabs(i)
 	end
+
+	d.print("setting up depots", true, 0)
+
+	setupDepots()
 end
 
 -- spawns all the depots
 function setupDepots()
-	local depot_zones = s.getZones("depot_zone")
+	d.print("getting depot zones", true, 0)
+	local depot_zones = s.getZones("depot")
+
+	d.print("getting forklift spawns", true, 0)
+	local forklift_zones = s.getZones("forklift_spawn")
+
+	for depot_zone_index, depot_zone in ipairs(depot_zones) do
+		local depot_type = getTagValue(depot_zone.tags, "depot_type", true)
+		-- spawn the depot
+		d.print("Spawning Depot: "..depot_zone.name, true, 0)
+		d.print("depot_type: "..depot_type, true, 0)
+		depot_zone.transform[14] = depot_zone.transform[14] - 0.07 -- just a little bit lower to avoid it spawning a bit above the ground
+		local depot = s.spawnAddonComponent(m.multiply(depot_zone.transform, g_savedata.prefabs.depot[depot_type]["prefab_data"].vehicle.transform), g_savedata.prefabs.depot[depot_type].playlist_index, g_savedata.prefabs.depot[depot_type].location_index, g_savedata.prefabs.depot[depot_type].object_index)
+		d.print("Spawned Depot: "..depot_zone.name, true, 0)
+		-- setup depot data
+		local new_depot = {
+			name = depot_zone.name,
+			index = depot_zone_index,
+			transform = depot.transform,
+			tags = depot.tags,
+			map_id = s.getMapID(),
+			object = depot,
+			zones = {
+				forklifts = {}
+			}
+		}
+
+		-- get all the forklift spawn zones for this depot
+
+		for _, forklift_zone in pairs(forklift_zones) do
+			if(m.distance(forklift_zone.transform, depot_zone.transform) <= 200) then
+				table.insert(new_depot.zones.forklifts, forklift_zone)
+			end
+		end
+
+		-- add it to savedata
+
+		g_savedata.spawned_objects.depots[depot_zone_index] = new_depot
+	end
 end
 
 function build_locations(playlist_index, location_index)
@@ -425,10 +471,17 @@ function build_locations(playlist_index, location_index)
 
     for object_index, object_data in iterObjects(playlist_index, location_index) do
 
-        for tag_index, tag_object in pairs(object_data.tags) do
+        for tag_index, tag_object in ipairs(object_data.tags) do
             if tag_object == "from=StormHaul" then
                 is_valid_location = true
             end
+			if tag_object == "type=depot" then
+				g_savedata.prefabs.depot[getTagValue(object_data.tags, "depot_type", true)] = { 
+					playlist_index = playlist_index, 
+					location_index = location_index, 
+					object_index = object_index
+				}
+			end
         end
 
         if object_data.type == "vehicle" then
@@ -460,8 +513,16 @@ function buildPrefabs(location_index)
 		end
 
 		local prefab_type = getTagValue(vehicle.tags, "type", true)
-		
-		table.insert(g_savedata.prefabs[prefab_type], prefab_data)
+		d.print("prefab type: "..prefab_type)
+		if prefab_type == PREFAB_TYPE_DEPOT then
+			if not g_savedata.prefabs[prefab_type][getTagValue(vehicle.tags, "depot_type", true)]["prefab_data"] then
+				g_savedata.prefabs[prefab_type][getTagValue(vehicle.tags, "depot_type", true)]["prefab_data"] = prefab_data
+			else
+				d.print("only supports one of each depot type! there cannot be two of the same type!", false, 1)
+			end
+		else
+			table.insert(g_savedata.prefabs[prefab_type], prefab_data)
+		end
 	end
 end
 
