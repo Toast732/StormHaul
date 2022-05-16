@@ -14,7 +14,7 @@ local d = debugging
 local s = server
 local m = matrix
 
-local STORMHAUL_VERSION = "(0.1.0.5)"
+local STORMHAUL_VERSION = "(0.1.0.6)"
 local IS_DEVELOPMENT_VERSION = string.match(STORMHAUL_VERSION, "(%d%.%d%.%d%.%d)")
 
 -- valid values:
@@ -397,7 +397,7 @@ function setupWorld()
 
 	d.print("building locations", true, 0)
 
-	for i in iterPlaylists() do
+	for i in iterAddons() do
 		for j in iterLocations(i) do
 			build_locations(i, j)
 		end
@@ -428,7 +428,7 @@ function setupDepots()
 		d.print("Spawning Depot: "..depot_zone.name, true, 0)
 		d.print("depot_type: "..depot_type, true, 0)
 		depot_zone.transform[14] = depot_zone.transform[14] - 0.07 -- just a little bit lower to avoid it spawning a bit above the ground
-		local depot = s.spawnAddonComponent(m.multiply(depot_zone.transform, g_savedata.prefabs.depot[depot_type]["prefab_data"].vehicle.transform), g_savedata.prefabs.depot[depot_type].playlist_index, g_savedata.prefabs.depot[depot_type].location_index, g_savedata.prefabs.depot[depot_type].object_index)
+		local depot = s.spawnAddonComponent(m.multiply(depot_zone.transform, g_savedata.prefabs.depot[depot_type]["prefab_data"].vehicle.transform), s.getAddonIndex(), g_savedata.prefabs.depot[depot_type].location_index, g_savedata.prefabs.depot[depot_type].object_index)
 		d.print("Spawned Depot: "..depot_zone.name, true, 0)
 		-- setup depot data
 		local new_depot = {
@@ -457,8 +457,8 @@ function setupDepots()
 	end
 end
 
-function build_locations(playlist_index, location_index)
-    local location_data = s.getLocationData(playlist_index, location_index)
+function build_locations(addon_index, location_index)
+    local location_data = s.getLocationData(addon_index, location_index)
 
     local addon_components = {
         vehicles = {},
@@ -469,15 +469,14 @@ function build_locations(playlist_index, location_index)
 
     local is_valid_location = false
 
-    for object_index, object_data in iterObjects(playlist_index, location_index) do
+    for object_index, object_data in iterObjects(addon_index, location_index) do
 
         for tag_index, tag_object in ipairs(object_data.tags) do
             if tag_object == "from=StormHaul" then
                 is_valid_location = true
             end
 			if tag_object == "type=depot" then
-				g_savedata.prefabs.depot[getTagValue(object_data.tags, "depot_type", true)] = { 
-					playlist_index = playlist_index, 
+				g_savedata.prefabs.depot[getTagValue(object_data.tags, "depot_type", true)] = {
 					location_index = location_index, 
 					object_index = object_index
 				}
@@ -496,7 +495,7 @@ function build_locations(playlist_index, location_index)
     end
 
     if is_valid_location then
-    	table.insert(built_locations, { playlist_index = playlist_index, location_index = location_index, data = location_data, objects = addon_components} )
+    	table.insert(built_locations, { location_index = location_index, data = location_data, objects = addon_components} )
     end
 end
 
@@ -539,34 +538,34 @@ function isTickID(id, rate)
 	return (g_savedata.tick_counter + id) % rate == 0
 end
 
--- iterator function for iterating over all playlists, skipping any that return nil data
-function iterPlaylists()
-	local playlist_count = s.getAddonCount()
-	local playlist_index = 0
+-- iterator function for iterating over all addons, skipping any that return nil data
+function iterAddons()
+	local addon_count = s.getAddonCount()
+	local addon_index = 0
 
 	return function()
-		local playlist_data = nil
-		local index = playlist_count
+		local addon_data = nil
+		local index = addon_count
 
-		while playlist_data == nil and playlist_index < playlist_count do
-			playlist_data = s.getAddonData(playlist_index)
-			index = playlist_index
-			playlist_index = playlist_index + 1
+		while addon_data == nil and addon_index < addon_count do
+			addon_data = s.getAddonData(addon_index)
+			index = addon_index
+			addon_index = addon_index + 1
 		end
 
-		if playlist_data ~= nil then
-			return index, playlist_data
+		if addon_data ~= nil then
+			return index, addon_data
 		else
 			return nil
 		end
 	end
 end
 
--- iterator function for iterating over all locations in a playlist, skipping any that return nil data
-function iterLocations(playlist_index)
-	local playlist_data = s.getAddonData(playlist_index)
+-- iterator function for iterating over all locations in a addon, skipping any that return nil data
+function iterLocations(addon_index)
+	local addon_data = s.getAddonData(addon_index)
 	local location_count = 0
-	if playlist_data ~= nil then location_count = playlist_data.location_count end
+	if addon_data ~= nil then location_count = addon_data.location_count end
 	local location_index = 0
 
 	return function()
@@ -574,7 +573,7 @@ function iterLocations(playlist_index)
 		local index = location_count
 
 		while not location_data and location_index < location_count do
-			location_data = s.getLocationData(playlist_index, location_index)
+			location_data = s.getLocationData(addon_index, location_index)
 			index = location_index
 			location_index = location_index + 1
 		end
@@ -588,8 +587,8 @@ function iterLocations(playlist_index)
 end
 
 -- iterator function for iterating over all objects in a location, skipping any that return nil data
-function iterObjects(playlist_index, location_index)
-	local location_data = s.getLocationData(playlist_index, location_index)
+function iterObjects(addon_index, location_index)
+	local location_data = s.getLocationData(addon_index, location_index)
 	local object_count = 0
 	if location_data ~= nil then object_count = location_data.component_count end
 	local object_index = 0
@@ -599,7 +598,7 @@ function iterObjects(playlist_index, location_index)
 		local index = object_count
 
 		while not object_data and object_index < object_count do
-			object_data = s.getLocationComponentData(playlist_index, location_index, object_index)
+			object_data = s.getLocationComponentData(addon_index, location_index, object_index)
 			object_data.index = object_index
 			index = object_index
 			object_index = object_index + 1
