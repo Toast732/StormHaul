@@ -14,7 +14,7 @@ local d = debugging
 local s = server
 local m = matrix
 
-local STORMHAUL_VERSION = "(0.1.0.6)"
+local STORMHAUL_VERSION = "(0.1.0.7)"
 local IS_DEVELOPMENT_VERSION = string.match(STORMHAUL_VERSION, "(%d%.%d%.%d%.%d)")
 
 -- valid values:
@@ -80,7 +80,8 @@ g_savedata = {
 		chat = false,
 		profiler = false,
 		map = false
-	}
+	},
+	game_settings = {}
 }
 
 --------------------------------------------------------------------------------
@@ -89,15 +90,45 @@ g_savedata = {
 --
 --------------------------------------------------------------------------------
 
+function setupRules()
+	RULES = {
+		DEPOTS = {
+			CARGO_SPAWNING = {
+				SCHEDULE = {
+					[1] = { -- morning
+						min = 7, -- 07:00
+						max = 8.5 -- 08:30
+					},
+					[2] = { -- night
+						min = 20, -- 20:00
+						max = 22 -- 22:00
+					}
+				}
+			}
+		}
+	}
+end
+
 function onCreate(is_world_create)
 	local world_setup_time = s.getTimeMillisec()
 	s.announce("Loading Script: " .. s.getAddonData((s.getAddonIndex())).name, "Complete, Version: "..STORMHAUL_VERSION, -1)
+
+	d.print("Setting up rules", true, 0)
+	setupRules()
 
 	if is_world_create then
 		d.print("setting up world", true, 0)
 		setupWorld()
 	end
 	d.print(("%s%.3f%s"):format("World setup complete! took: ", millisecondsSince(world_setup_time)/1000, "s"), true, -1)
+end
+
+-- updates the game's settings
+function updateGameSettings()
+	local update_rate = time.second*5
+	if isTickID(0, update_rate) then
+		g_savedata.game_settings = s.getGameSettings()
+	end
 end
 
 -- tick the cargo timers
@@ -111,14 +142,33 @@ end
 
 -- tick the depot timers
 function tickDepots()
+	-- go through all depots
+	for depot_index, depot in ipairs(g_savedata.spawned_objects.depots) do
+		
+		--* handles refreshing/spawning cargo on a schedule
+		if isMinuteID(0, 15) and isTickID(0, (g_savedata.game_settings.day_night_length * 2)) then
+			local time_data = s.getTime()
+			local current_time = time_data.hour + (time_data.minute / 60)
 
+			if current_time == depot.spawn_time then
+			
+				d.print("Spawning Cargo! "..current_time, true, 0)				
+				-- get next time to spawn the cargo 
+
+				depot.spawn_time = getCargoSpawnTime()
+			end
+		end
+	end
 end
 
 function onTick()
 	g_savedata.tick_counter = g_savedata.tick_counter + 1
 	d.startProfiler("onTick()", true)
+
+	updateGameSettings()
 	tickCargo()
 	tickDepots()
+
 	d.stopProfiler("onTick()", true, "onTick()")
 end
 
@@ -142,6 +192,23 @@ function onPlayerJoin(steam_id, name, peer_id)
 
 	-- update the player's peer_id
 	g_savedata.player_data[tostring(steam_id)].peer_id = peer_id
+end
+
+---@return number cargo_spawn_time the time when the cargo will be spawned at the depot
+function getCargoSpawnTime() -- returns the time in that the cargo should spawn at for this depot
+	local time_data = s.getTime()
+	local current_time = time_data.hour + time_data.minute/609
+
+	if current_time > RULES.DEPOTS.CARGO_SPAWNING.SCHEDULE[#RULES.DEPOTS.CARGO_SPAWNING.SCHEDULE].min then
+		return math.floor(rand(RULES.DEPOTS.CARGO_SPAWNING.SCHEDULE[1].min, RULES.DEPOTS.CARGO_SPAWNING.SCHEDULE[1].max)*4)/4
+	end
+	
+	for i = 1, #RULES.DEPOTS.CARGO_SPAWNING.SCHEDULE do
+		if current_time < RULES.DEPOTS.CARGO_SPAWNING.SCHEDULE[i].min then
+			return math.floor(rand(RULES.DEPOTS.CARGO_SPAWNING.SCHEDULE[i].min, RULES.DEPOTS.CARGO_SPAWNING.SCHEDULE[i].max)*4)/4
+		end
+	end
+
 end
 
 --------------------------------------------------------------------------------
@@ -430,7 +497,9 @@ function setupDepots()
 		depot_zone.transform[14] = depot_zone.transform[14] - 0.07 -- just a little bit lower to avoid it spawning a bit above the ground
 		local depot = s.spawnAddonComponent(m.multiply(depot_zone.transform, g_savedata.prefabs.depot[depot_type]["prefab_data"].vehicle.transform), s.getAddonIndex(), g_savedata.prefabs.depot[depot_type].location_index, g_savedata.prefabs.depot[depot_type].object_index)
 		d.print("Spawned Depot: "..depot_zone.name, true, 0)
+		
 		-- setup depot data
+		---@class depot
 		local new_depot = {
 			name = depot_zone.name,
 			index = depot_zone_index,
@@ -440,7 +509,8 @@ function setupDepots()
 			object = depot,
 			zones = {
 				forklifts = {}
-			}
+			},
+			spawn_time = getCargoSpawnTime()
 		}
 
 		-- get all the forklift spawn zones for this depot
@@ -536,6 +606,13 @@ end
 ---@return boolean isTick if its the current tick that you requested
 function isTickID(id, rate)
 	return (g_savedata.tick_counter + id) % rate == 0
+end
+
+---@param id integer the minute you want to check that it is
+---@param rate integer the total amount of minutes (in game time)
+---@return boolean isMinute if its the current minute that you requested
+function isMinuteID(id, rate)
+	return (s.getTime().minute + id) % rate == 0
 end
 
 -- iterator function for iterating over all addons, skipping any that return nil data
@@ -1154,6 +1231,10 @@ end
 ---@return number ms_since how many ms its been since <start_ms>
 function millisecondsSince(start_ms)
 	return s.getTimeMillisec() - start_ms
+end
+
+function rand(x, y)
+	return math.random()*(y-x)+x
 end
 
 -- custom functions made due to a bug in v1.4.15, its since been patched
